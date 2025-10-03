@@ -10,6 +10,10 @@ pub mod binary;
 pub enum FileType{
     Text,
     Binary,
+    Html,
+    Xml,
+    Pdf,
+    Image, 
 }
 
 // The represenation of the file and it's contents.

@@ -6,7 +6,6 @@ This rust application will incorporate some of the starting principles of LLM ex
 
 {Describe your purpose for writing this software.}
 
-
 [Software Demo Video](http://youtube.link.goes.here)
 
 # Development Environment
@@ -28,3 +27,21 @@ This rust application will incorporate some of the starting principles of LLM ex
 - Item 2
 - Item 3
 
+
+
+# File structure
+src/
+├── main.rs
+├── lib.rs
+├── adapters/
+│   ├── mod.rs              // FileAdapter, FileRecord, Content, FileKind, adapter_for(..)
+│   ├── text.rs             // TextFileAdapter
+│   ├── binary.rs           // BinaryFileAdapter
+│   ├── pdf.rs              // PdfAdapter (pdfium-render, pdftotext as a fallback)
+│   ├── html.rs             // HtmlAdapter (scraper + optional ammonia/html2text)
+│   ├── xml.rs              // XmlAdapter (quick-xml)
+│   └── ocr.rs              // OcrAdapter (leptess/tesseract + optional pdf rasterization)
+├── ingest/
+│   └── mod.rs
+└── normalize/
+    └── mod.rs
