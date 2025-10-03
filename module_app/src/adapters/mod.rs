@@ -3,6 +3,9 @@ use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
+use crate::adapters::image::OcrAdapter;
+use crate::adapters::pdf::PdfAdapter;
+
 pub mod text;
 pub mod binary;
 
@@ -51,7 +54,7 @@ pub fn adapter_for(path: &Path) -> Box<dyn FileAdapter + Send + Sync> {
         "txt" | "md" | "csv" | "tsv" | "json" | "toml" | "yaml" | "yml" | "rs"  | "py" | "java" | "c" | "cpp" | "cs" => Box::new(text::TextFileAdapter),
         "html" | "htm" => Box::new(html::HtmlFileAdapter),
         "xml" | "opf" | "ncx" => Box::new(xml::XmlFileAdapter),
-        "pdf" => Box::new(pdf::PdfFileAdapter),
+        "pdf" => Box::new(pdf_checker::default()),
         "png" | "jpg" | "jpeg" | "tif" | "tiff" | "bmp" | "gif" => Box::new(image::ImageFileAdapter),
         _ => Box::new(BinaryFileAdapter),
     }
@@ -64,4 +67,18 @@ pub fn write_all(output_path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     }
     let mut w_file = File::create(output_path)?;
     w_file.write_all(bytes)
+}
+
+// check pdf for text, then resort to scanners.
+
+pub fn pdf_checker(path: &Path) -> io::Result<FileRecord> {
+    let pdf = PdfAdapter::default();
+    if let Ok(mut rec) = pdf.read(path){
+        if matches!(rec.content, Content::Text(ref s) if !s.trim().is_empty()) {
+            return Ok(rec);
+        }
+    }
+
+    let ocr = OcrAdapter::pdf_pages();
+    ocr.read(path)
 }

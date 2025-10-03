@@ -4,6 +4,10 @@ use crate::adapters::{Content, FileAdapter, FileRecord, FileType};
 
 pub struct PdfAdapter;
 
+pub struct PdfAdapterType {
+    
+}
+
 impl FileAdapter for PdfAdapter{
     fn read (&self, path: &Path) -> io::Result<()> {
 
@@ -49,6 +53,8 @@ impl FileAdapter for PdfAdapter{
 
 
 }
+
+
 
 fn extract_with_pdfium(path: &Path) -> io::Result<()> {
     // This is how pdfium is initiated. (https://docs.rs/pdfium-render/latest/pdfium_render/)
@@ -108,6 +114,8 @@ fn extract_with_pdftotext(path: &Path) -> io::Result<String>{
 
 
 }
+
+
 
 
 
