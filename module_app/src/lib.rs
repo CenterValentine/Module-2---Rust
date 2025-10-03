@@ -2,8 +2,13 @@ pub mod adapters;
 pub mod ingest;
 pub mod normalize;
 
+
+pub use adapters::{Content, FileAdapter, FileKind, FileRecord};
+
 use std::collections::HashMap;
 use std::path::PathBuf;
+
+
 
 pub struct RawDocument {
     pub path: PathBuf,
