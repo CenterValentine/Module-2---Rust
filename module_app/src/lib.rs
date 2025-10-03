@@ -3,7 +3,7 @@ pub mod ingest;
 pub mod normalize;
 
 
-pub use adapters::{Content, FileAdapter, FileKind, FileRecord};
+pub use adapters::{Content, FileAdapter, FileType, FileRecord};
 
 use std::collections::HashMap;
 use std::path::PathBuf;
