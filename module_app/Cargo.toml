@@ -4,3 +4,20 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+mime_guess = "2"  
+scraper = "0.19"
+ammonia = "4" 
+
+# HTML
+scraper = "0.19"
+html2text = "0.12"
+
+# XML
+quick-xml = "0.36"
+
+# PDF
+pdfium-render = "0.8"
+
+# OCR
+leptess = "0.14"
+image = "0.25"
