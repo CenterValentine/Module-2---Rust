@@ -1,5 +1,6 @@
 use std::{io, path::Path};
 use crate::adapters::{Content, FileAdapter, FileRecord, FileType};
+use crate::adapters::util::new_pdfium;
 
 
 pub struct PdfAdapter;
@@ -85,11 +86,11 @@ impl FileAdapter for PdfAdapter{
 
 fn extract_with_pdfium(path: &Path) -> io::Result<String> {
     // This is how pdfium is initiated. (https://docs.rs/pdfium-render/latest/pdfium_render/)
-    use pdfium_render::prelude::*;
-// bind
-    let pdfium = Pdfium::new(Pdfium::bind_to_system_library()
+    // use pdfium_render::prelude::*;
+    
+// bindings are done in utils.
+    let pdfium = new_pdfium()?;
     //catch pdfium errors
-    .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("PDFium bind: {e}")))?);
 // passwords can be added to 2nd argument of load_pdf_from_file
     let doc = pdfium.load_pdf_from_file(path, None)
     // catch load_pdf_from_file errors

@@ -3,18 +3,18 @@ use std::fs::{self, File};
 use std::io::{Write};
 use std::path::{Path, PathBuf};
 
-
 use crate::adapters::pdf::PdfAdapter;
 pub use binary::BinaryFileAdapter;
 
 // submodules
 pub mod text;
 pub mod binary;
-
 pub mod pdf;
 pub mod html;
 pub mod xml;
 pub mod image;
+pub mod ocr_auto_lang;
+pub mod util;
 // mod ocr;
 
 //Acceptable file types
@@ -39,7 +39,6 @@ pub enum Content {
     Text(String),
     Bytes(Vec<u8>),
 }
-
 
 //Actual adapter interface "class"
 pub trait FileAdapter {

@@ -1,5 +1,6 @@
 use std::{io, path::Path};
 use crate::adapters::{Content, FileAdapter, FileType, FileRecord};
+use crate::adapters::util::new_pdfium;
 
 
 // Leptess - Tesseract binder - https://crates.io/crates/leptess?utm_source=chatgpt.com
@@ -79,8 +80,8 @@ fn ocr_pdf_by_rasterizing(path:&Path, lang: &str) -> io::Result<String> {
     use leptess::LepTess;
     use image::ImageFormat;
 
-    let pdfium = Pdfium::new(Pdfium::bind_to_system_library()
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Pdfium binding error: {e}")))?);
+// bindings are done in utils.
+    let pdfium = new_pdfium()?;
 
     let document = pdfium
         .load_pdf_from_file(path,None)

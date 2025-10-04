@@ -1,6 +1,7 @@
 mod adapters;
 mod ingest;
 mod normalize;
+use crate::adapters::{FileAdapter, Content};
 
 use std::path::Path;
 
@@ -8,12 +9,11 @@ use std::path::Path;
 1.cargo clean
 2.	cargo check
 3.	cargo build
-(brew install pkgconf tesseract leptonica)
 */
+
 
 fn main() {
 
-    
 let input_dir = Path::new("./input");
 let output_dir = Path::new("./output");
 
@@ -32,9 +32,15 @@ for rec in &records {
     // strip path and prefix. unwrap_or falls back to full path
     let rel = rec.path.strip_prefix(input_dir).unwrap_or(&rec.path);
     // Pathname
-    let output_path = output_dir.join(rel);
+    let mut output_path = output_dir.join(rel);
+    
+    // sets extension to text file.
+    output_path.set_extension("txt");
 
-    let writer = adapters::adapter_for(&output_path);
+    let writer: Box<dyn FileAdapter + Send + Sync> = match rec.content {
+        Content::Text(_)  => Box::new(adapters::text::TextFileAdapter),
+        Content::Bytes(_) => Box::new(adapters::binary::BinaryFileAdapter),
+    };
     // Write the file unless there is an error
     if let Err(err) = writer.write(rec, &output_path){
         eprintln!("Failed to write {}: {err}", output_path.display());

@@ -4,9 +4,14 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+
+
 # text
-mime_guess = "2"  
+ 
 ammonia = "4" 
+
+# Binary
+base64 = "0.22"
 
 # HTML
 scraper = "0.19"
@@ -15,9 +20,13 @@ html2text = "0.12"
 # XML
 quick-xml = "0.36"
 
-# PDF
-pdfium-render = "0.8"
 
 # OCR
 leptess = "0.14"
 image = "0.25"
+
+# language detection
+lingua = "1" 
+
+# PDF
+pdfium-render = "0.8.35"

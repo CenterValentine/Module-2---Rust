@@ -1,4 +1,6 @@
-use crate::adapters::{adapter_for, FileRecord};
+use crate::adapters::{adapter_for, FileRecord, Content, FileAdapter};
+use crate::adapters::pdf::PdfAdapter;
+use crate::adapters::ocr_auto_lang;
 use std::fs;
 use std::path::{Path,PathBuf};
 
@@ -22,9 +24,9 @@ pub fn ingest_directory(root: &Path, recursive: bool) -> Vec<FileRecord> {
                     let p = file_entry.path();
                     // add to stack
                     if recursive {stack.push(p)}
-// other valid files...
+    // other valid files...
                     else if p.is_file() {
-// add valid files to stack.
+    // add valid files to stack.
                 if let Some(rec) = read_record(&p){
                     records.push(rec);
                     }
@@ -56,12 +58,52 @@ pub fn ingest_directory(root: &Path, recursive: bool) -> Vec<FileRecord> {
 }
 
 pub fn read_record(path:&Path) -> Option<FileRecord> {
-    let adapter = adapter_for(path);
-    match adapter.read(path){
-        Ok(rec) => Some(rec),
-        Err(err) => {
-            eprintln!("Skipping {}: {err}", path.display());
-            None
-        }
+    let ext = path
+            .extension()
+            .and_then(|s| s.to_str())
+            .map(|s| s.to_ascii_lowercase())
+            .unwrap_or_default();
+    
+    // language detection for images
+        if matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "tif" | "tiff" | "bmp" | "gif") {
+        return match ocr_auto_lang::ocr_image_auto_lang(path) {
+            Ok(rec) => Some(rec),
+            Err(err) => {
+                eprintln!("OCR failed {}: {err}", path.display());
+                None
+            }
+        };
     }
+
+    // language detection for pdfs
+    if ext == "pdf" {
+        let pdf = PdfAdapter;
+        match pdf.read(path) {
+            Ok(rec) => {
+                if matches!(rec.content, Content::Text(ref s) if !s.trim().is_empty()) {
+                    return Some(rec); 
+                }
+            }
+            Err(err) => {
+                eprintln!("PDF text read failed, attempting OCR {}: {err}", path.display());
+            }
+        }
+
+       return match ocr_auto_lang::ocr_pdf_auto_lang(path) {
+            Ok(rec) => Some(rec),
+            Err(err) => {
+                eprintln!("PDF OCR failed {}: {err}", path.display());
+                None
+            }
+        };
+    }
+
+    let adapter = adapter_for(path);
+        match adapter.read(path){
+            Ok(rec) => Some(rec),
+            Err(err) => {
+                eprintln!("Skipping {}: {err}", path.display());
+                None
+            }
+        }
 }
