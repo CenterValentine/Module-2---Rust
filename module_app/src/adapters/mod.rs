@@ -1,13 +1,21 @@
 // use std::f32::consts::E;
 use std::fs::{self, File};
-use std::io::{Read, Write};
+use std::io::{Write};
 use std::path::{Path, PathBuf};
 
-use crate::adapters::image::OcrAdapter;
-use crate::adapters::pdf::PdfAdapter;
 
+use crate::adapters::pdf::PdfAdapter;
+pub use binary::BinaryFileAdapter;
+
+// submodules
 pub mod text;
 pub mod binary;
+
+pub mod pdf;
+pub mod html;
+pub mod xml;
+pub mod image;
+// mod ocr;
 
 //Acceptable file types
 pub enum FileType{
@@ -38,24 +46,23 @@ pub trait FileAdapter {
     fn read(&self, path: &Path) -> std::io::Result<FileRecord>;
     fn write(&self, record: &FileRecord, output_path: &Path) -> std::io::Result<()>;
 }
-// submodules
-mod text;
-mod binary;
-mod pdf;
-mod html;
-mod xml;
-mod image;
-// mod ocr;
+
 
 
 // Adapter for a path
 pub fn adapter_for(path: &Path) -> Box<dyn FileAdapter + Send + Sync> {
-    match detect_file_type(path){
+    let ext = path
+    .extension()
+    .and_then(|s| s.to_str())
+    .map(|s| s.to_ascii_lowercase())
+    .unwrap_or_default();
+
+    match ext.as_str(){
         "txt" | "md" | "csv" | "tsv" | "json" | "toml" | "yaml" | "yml" | "rs"  | "py" | "java" | "c" | "cpp" | "cs" => Box::new(text::TextFileAdapter),
         "html" | "htm" => Box::new(html::HtmlFileAdapter),
-        "xml" | "opf" | "ncx" => Box::new(xml::XmlFileAdapter),
-        "pdf" => Box::new(pdf_checker::default()),
-        "png" | "jpg" | "jpeg" | "tif" | "tiff" | "bmp" | "gif" => Box::new(image::ImageFileAdapter),
+        "xml" | "opf" | "ncx" => Box::new(xml::XmlAdapter),
+        "pdf" => Box::new(PdfAdapter),
+        "png" | "jpg" | "jpeg" | "tif" | "tiff" | "bmp" | "gif" => Box::new(image::OcrImageAdapter::images()),
         _ => Box::new(BinaryFileAdapter),
     }
 }
@@ -69,16 +76,4 @@ pub fn write_all(output_path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     w_file.write_all(bytes)
 }
 
-// check pdf for text, then resort to scanners.
 
-pub fn pdf_checker(path: &Path) -> io::Result<FileRecord> {
-    let pdf = PdfAdapter::default();
-    if let Ok(mut rec) = pdf.read(path){
-        if matches!(rec.content, Content::Text(ref s) if !s.trim().is_empty()) {
-            return Ok(rec);
-        }
-    }
-
-    let ocr = OcrAdapter::pdf_pages();
-    ocr.read(path)
-}

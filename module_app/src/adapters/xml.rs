@@ -1,4 +1,4 @@
-use std::{fs::File, io::{self, BufReader}, path::Path, process::Output};
+use std::{fs::File, io::{self, BufReader}, path::Path};
 use quick_xml::events::Event;
 use quick_xml::Reader;
 use crate::adapters::{Content, FileRecord, FileAdapter, FileType};
@@ -10,9 +10,8 @@ impl FileAdapter for XmlAdapter {
 
 
         let file = File::open(path)?;
-        let mut reader = Reader::from_reader(BufReader::new(file)).trim_text(true);
-        // reader.trim_text(true);
-
+        let mut reader = Reader::from_reader(BufReader::new(file));
+reader.config_mut().trim_text(true);
 
         let mut buf = Vec::new();
         let mut out = String::new();
@@ -21,20 +20,28 @@ impl FileAdapter for XmlAdapter {
         loop {
             match reader.read_event_into(&mut buf){
                 // text content inside the quick_xml Event.
-                Ok(Event::Text(t)) => out
+                Ok(Event::Text(t)) => {
 
-                .push_str(&t
+
+                out.push_str(&t
                     // xml escapes such as &amp; -> &
                 .unescape()
                 // returns empty string if unescape fails
-                .unwrap_or_default()),
+                .unwrap_or_default());
+            }
                 Ok(Event::Eof) => break,
-                Err(e) => return Err(io::Error::new(io::ErrorKind::InvalidData, e)),
+                Err(e) => {
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, e));
+                },
                 _ => {}
-
             }
             buf.clear();
         }
+        Ok(FileRecord {
+            path: path.to_path_buf(),
+            kind: FileType::Xml,
+            content: Content::Text(out),
+        })
     }
 
     fn write (&self, record: &FileRecord, output_path: &Path) -> io::Result<()> {

@@ -3,9 +3,9 @@ use crate::adapters::{Content, FileAdapter, FileType, FileRecord};
 
 
 // Leptess - Tesseract binder - https://crates.io/crates/leptess?utm_source=chatgpt.com
-pub struct OcrAdapter {
+pub struct OcrImageAdapter {
 mode: OcrMode,
-lang: String, //default to "eng"
+lang: String, //defaults to "eng"
 }
 
 enum OcrMode {
@@ -14,22 +14,23 @@ Pdfium
 }
 
 // Adapter implimentations
-impl OcrAdapter {
+impl OcrImageAdapter {
     pub fn images() -> Self {
+        // defaul to "eng"
         Self {mode: OcrMode::ImagesOnly, lang: "eng".into() }
     }
+
     pub fn pdf_pages() -> Self {
         Self {mode: OcrMode::Pdfium, lang: "eng".into()}
     }
+    // set language
     pub fn with_lang(mut self, lang: &str) -> Self {
         self.lang = lang.into();
         self
     }
-
 }
 
-
-impl FileAdapter for OcrAdapter {
+impl FileAdapter for OcrImageAdapter {
     fn read(&self, path:&Path) -> io::Result<FileRecord> {
         let text = match self.mode {
             OcrMode::ImagesOnly => ocr_standalone_image(path, &self.lang)?,
@@ -76,7 +77,7 @@ fn ocr_standalone_image(path: &Path, lang: &str) -> io::Result<String> {
 fn ocr_pdf_by_rasterizing(path:&Path, lang: &str) -> io::Result<String> {
     use pdfium_render::prelude::*;
     use leptess::LepTess;
-    use image::ImageOutputFormat;
+    use image::ImageFormat;
 
     let pdfium = Pdfium::new(Pdfium::bind_to_system_library()
         .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Pdfium binding error: {e}")))?);
@@ -92,9 +93,9 @@ fn ocr_pdf_by_rasterizing(path:&Path, lang: &str) -> io::Result<String> {
     // indexed pages allows for more versitile navigation of  pages.  See pdf adapter for more information.
     for idx in 0..len {
         // Ai suggests removing unwraps for safety.  Wrapping variable in Some instead and use .get(index)
-        let Some(page) = pages.get(idx) else {continue;};
+        if let Ok(page) = pages.get(idx) {
         
-// bitmap
+        // bitmap   
         let img = page
             .render_with_config(
             &PdfRenderConfig::new()
@@ -108,7 +109,7 @@ fn ocr_pdf_by_rasterizing(path:&Path, lang: &str) -> io::Result<String> {
         let mut temp_png = Vec::new();
         img.write_to(
             &mut std::io::Cursor::new(&mut temp_png),
-            ImageOutputFormat::Png,
+            ImageFormat::Png,
         )
         .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("transient png error: {e} ")))?;
 
@@ -122,7 +123,8 @@ fn ocr_pdf_by_rasterizing(path:&Path, lang: &str) -> io::Result<String> {
             .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("ocr error: {e}")))?;
         out.push_str(&page_text);
         out.push('\n');
-    }
-    Ok(out)
+    } else { continue;}
 
+}
+ Ok(out)
 }
