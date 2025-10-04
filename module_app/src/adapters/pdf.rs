@@ -5,6 +5,7 @@ use crate::adapters::{Content, FileAdapter, FileRecord, FileType};
 pub struct PdfAdapter;
 
 struct PdfTextExtractor;
+// PdfTextLayoutMode? like what's in OCR,
 
 
 impl PdfTextExtractor {

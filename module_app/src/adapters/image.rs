@@ -48,7 +48,8 @@ impl FileAdapter for OcrAdapter {
         match &record.content {
             Content::Text(s) => std::fs::write(output_path, s),
             Content::Bytes(b) => std::fs::write(output_path,b),
-        }
+        }?;
+        Ok(())
     }
 }
 
@@ -59,44 +60,66 @@ fn ocr_standalone_image(path: &Path, lang: &str) -> io::Result<String> {
     use leptess::{LepTess, Variable};
     let mut lt = LepTess::new(None,lang)
         .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("tesseract init: {e}")))?;
-    lt.set_variable(Variable::TesseditCharWhitelist, "") // optional adjustments
-    .ok();
-    lt.set_image(path.to_str().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "bad utf path"))?);
+    lt.set_variable(Variable::TesseditCharWhitelist, "").ok(); // optional adjustments
+
+    let img_path = path
+        .to_str()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "non-utf8 path"))?;
+
+    lt.set_image(img_path)
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("set_image error: {e}")))?;
     lt.get_utf8_text()
         .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("ocr error: {e}")))
 
 }
 
-fn ocr_pdf_by_rasterizing(){
+fn ocr_pdf_by_rasterizing(path:&Path, lang: &str) -> io::Result<String> {
     use pdfium_render::prelude::*;
     use leptess::LepTess;
+    use image::ImageOutputFormat;
 
     let pdfium = Pdfium::new(Pdfium::bind_to_system_library()
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Pdfium binding error: {e}")))?;
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Pdfium binding error: {e}")))?);
 
-    let document = pdfium.load_pdf_from_file(path,None)
+    let document = pdfium
+        .load_pdf_from_file(path,None)
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("Pdf open error: {e}")))?;
 
     let mut out = String::new();
+    let pages = document.pages();
+    let len = pages.len();
+    
     // indexed pages allows for more versitile navigation of  pages.  See pdf adapter for more information.
-    for idx in 0..doc.pages().len() {
-        let page = document.pages().get(idx).unwrap();
-        let bmp = page.render_with_config(
+    for idx in 0..len {
+        // Ai suggests removing unwraps for safety.  Wrapping variable in Some instead and use .get(index)
+        let Some(page) = pages.get(idx) else {continue;};
+        
+// bitmap
+        let img = page
+            .render_with_config(
             &PdfRenderConfig::new()
                 .set_target_width(2000)             // Expand adjust quality preference
-                .render_form_data(true)).unwrap().as_image(); //image::DynamicImage
+                .render_form_data(true),
+            )
+                .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Render page error on {idx}: {e}")))?
+                .as_image(); //image::DynamicImage
 
-        // Save to temporary png, stream to tesseract
+        //  temporary png, stream to tesseract
+        let mut temp_png = Vec::new();
+        img.write_to(
+            &mut std::io::Cursor::new(&mut temp_png),
+            ImageOutputFormat::Png,
+        )
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("transient png error: {e} ")))?;
+
         let mut lt = LepTess::new(None, lang)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("tesseract init: {e}")))?;
-        let png = {
-            let mut buf = Vec::new();
-            bmp.write_to(&mut std::io::Cursor::new(&mut buf), image::ImageOutputFormat::Png)
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("png encode error: {e}")))?;
-            buf
-        };
-        lt.set_image_from_mem(&png_bytes).map_err(|e| io::Error::new(io::ErrorKind::Other, format!("set_image error: {e}")))?;
-        let page_test = lt.get_utf8_text().map_err(|e| io::Error::new(io::ErrorKind::Other, format!("ocr error: {e}")))?;
+  
+  
+        lt.set_image_from_mem(&temp_png).map_err(|e| io::Error::new(io::ErrorKind::Other, format!("set_image error: {e}")))?;
+        let page_text = lt
+            .get_utf8_text()
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("ocr error: {e}")))?;
         out.push_str(&page_text);
         out.push('\n');
     }
