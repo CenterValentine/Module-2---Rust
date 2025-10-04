@@ -4,42 +4,68 @@ use crate::adapters::{Content, FileAdapter, FileRecord, FileType};
 
 pub struct PdfAdapter;
 
-pub struct PdfAdapterType {
-    
-}
+struct PdfTextExtractor;
 
-impl FileAdapter for PdfAdapter{
-    fn read (&self, path: &Path) -> io::Result<()> {
+
+impl PdfTextExtractor {
+    fn new() -> Self {
+    PdfTextExtractor
+    }
+
+    fn try_extract_text(&self, path:&Path) -> io::Result<Option<String>> {
+        
 
         // use pdfium 
         match extract_with_pdfium(path) {
             Ok(text) if !text.trim().is_empty() => {
-                return Ok(FileRecord {
-                    path: path.to_path_buf(),
-                    kind: FileType::Pdf,
-                    content: Content::Text(text),
-                });
+                return Ok(Some(text));
             }
-        _=> {}
+        _=> {/* next method*/}
         }
 
         // pdftotext as fallback
         if let Ok(text) = extract_with_pdftotext (path) {
-            return Ok(FileRecord {
+
+            if !text.trim().is_empty() {
+                return Ok(Some(text));
+            }
+
+        }
+
+        // OCR fallback possilbe here.
+        // if let Some(lang) = self.ocr_lang {
+        //     let ocr_text = ocr_pdf_by_rasterizing(path, lang, self.target_width)...
+       
+        Ok(None)
+
+      
+    }
+
+    
+
+}
+
+impl FileAdapter for PdfAdapter{
+    fn read (&self, path: &Path) -> io::Result<FileRecord> {
+
+        let extractor = PdfTextExtractor::new();
+
+        if let Some(text) = extractor.try_extract_text(path)? {
+    return Ok(FileRecord {
                 path: path.to_path_buf(),
                 kind: FileType::Pdf,
                 content: Content::Text(text),
             });
         }
-
-
-        //  raw bytes pdf for all other cases.
+    
+    //    raw bytes pdf for all other cases.
         let bytes = std::fs::read(path)?;
         Ok(FileRecord {
             path: path.to_path_buf(),
             kind: FileType::Pdf,
-            content: Content::Text(bytes)
+            content: Content::Bytes(bytes),
         })
+    
     }
 
 
@@ -56,7 +82,7 @@ impl FileAdapter for PdfAdapter{
 
 
 
-fn extract_with_pdfium(path: &Path) -> io::Result<()> {
+fn extract_with_pdfium(path: &Path) -> io::Result<String> {
     // This is how pdfium is initiated. (https://docs.rs/pdfium-render/latest/pdfium_render/)
     use pdfium_render::prelude::*;
 // bind
